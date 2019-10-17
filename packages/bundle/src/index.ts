@@ -1,6 +1,6 @@
 /** @module bundle */
 
-import { tritsToValue } from '@iota/converter'
+import { tritsToTrytes, tritsToValue } from '@iota/converter'
 import Kerl from '@iota/kerl'
 import { increment, MAX_TRYTE_VALUE, normalizedBundle } from '@iota/signing'
 import * as errors from '../../errors'
@@ -31,6 +31,8 @@ import {
     VALUE_LENGTH,
     VALUE_OFFSET,
 } from '@iota/transaction'
+
+import { asTransactionObject } from '@iota/transaction-converter'
 
 export interface BundleEntry {
     readonly signatureOrMessage: Int8Array
@@ -204,6 +206,27 @@ export const finalizeBundle = (bundle: Int8Array): Int8Array => {
     const bundleCopy = bundle.slice()
     const bundleHash = new Int8Array(BUNDLE_LENGTH)
 
+    // Check for value transfer
+    let valueTransfer = true
+    let firstInputTxPosition = 0
+    const transactionObjects = []
+
+    for (let i = 0; i < bundleCopy.length; i += TRANSACTION_LENGTH) {
+        transactionObjects.push(asTransactionObject(tritsToTrytes(bundleCopy.slice(i, i + TRANSACTION_LENGTH))))
+    }
+    // Find input transaction
+    for (let i = 0; i < transactionObjects.length; i++) {
+        if (transactionObjects[i].value < 0) {
+            firstInputTxPosition = i
+            break
+        }
+        if (i === transactionObjects.length - 1) {
+            valueTransfer = false
+        }
+    }
+    // Additional offset for obsolet_tag mutation
+    const transactionPosition = firstInputTxPosition * TRANSACTION_LENGTH
+
     // This block recomputes bundle hash by incrementing `obsoleteTag` field of first transaction in the bundle.
     // Normalized bundle should NOT contain value `13`.
     while (true) {
@@ -221,10 +244,20 @@ export const finalizeBundle = (bundle: Int8Array): Int8Array => {
             break
         }
 
+        // Stop if no value transfer
+        if (valueTransfer === false) {
+            break
+        }
+
         // Essence results to insecure bundle. (Normalized bundle hash contains value `13`.)
         bundleCopy.set(
-            increment(bundleCopy.subarray(OBSOLETE_TAG_OFFSET, OBSOLETE_TAG_OFFSET + OBSOLETE_TAG_LENGTH)),
-            OBSOLETE_TAG_OFFSET
+            increment(
+                bundleCopy.subarray(
+                    transactionPosition + OBSOLETE_TAG_OFFSET,
+                    transactionPosition + OBSOLETE_TAG_OFFSET + OBSOLETE_TAG_LENGTH
+                )
+            ),
+            transactionPosition + OBSOLETE_TAG_OFFSET
         )
 
         sponge.reset()

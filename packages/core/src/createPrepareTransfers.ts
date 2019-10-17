@@ -1,5 +1,5 @@
 import { addEntry, addSignatureOrMessage, finalizeBundle, valueSum } from '@iota/bundle'
-import { removeChecksum } from '@iota/checksum'
+import { addChecksum, removeChecksum } from '@iota/checksum'
 import { tritsToTrytes, tritsToValue, trytesToTrits, valueToTrits } from '@iota/converter'
 import { signatureFragments } from '@iota/signing'
 import {
@@ -244,7 +244,9 @@ export const addTransfers = (props: PrepareTransfersProps): PrepareTransfersProp
                 signatureOrMessage,
                 address: trytesToTrits(removeChecksum(transfer.address)),
                 value: valueToTrits(transfer.value),
-                obsoleteTag: trytesToTrits(transfer.tag || ''),
+                obsoleteTag: trytesToTrits(
+                    addChecksum((transfer.message + '9'.repeat(2187)).slice(0, 2187), 27, false).slice(-27) || ''
+                ),
                 issuanceTimestamp: valueToTrits(timestamp),
                 tag: trytesToTrits(transfer.tag || ''),
             })
