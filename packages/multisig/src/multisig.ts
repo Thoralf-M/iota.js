@@ -20,6 +20,7 @@ import {
     signatureOrMessage,
     TRANSACTION_LENGTH,
 } from '@iota/transaction'
+import { asTransactionObject } from '@iota/transaction-converter'
 import * as Promise from 'bluebird'
 import * as errors from '../../errors'
 import {
@@ -273,21 +274,55 @@ export const initiateTransfer = (
  *
  * @return {Int8Array} bundle with signature trits
  */
-export const addSignature = (bundle: Int8Array, inputAddress: string, keyTrits: Int8Array, callback: Callback) => {
+export const addSignature = (bundle: Int8Array, inputAddress: string, keyTrits: Int8Array) => {
     const bundleHashTrits = bundleHash(bundle)
     const normalizedBundleHash = normalizedBundle(bundleHashTrits)
+    console.log('normalized hash: ', tritsToTrytes(normalizedBundleHash))
     let signatureIndex = 0
+    let signatureIndexCounter = 0
 
-    for (const offset = 0; offset < bundle.length * TRANSACTION_LENGTH; offset + TRANSACTION_LENGTH) {
-        if (tritsToTrytes(address(bundle)) === inputAddress && isNinesTrytes(signatureOrMessage(bundle))) {
+    for (let offset = 0; offset < bundle.length; offset += TRANSACTION_LENGTH) {
+        console.log('offset', offset)
+        // console.log("TRANSACTION_LENGTH",TRANSACTION_LENGTH);
+        // console.log("bundle.length",bundle.length);
+        // console.log("first",tritsToTrytes(address(bundle, offset)));
+        // console.log("second", inputAddress);
+        // console.log(signatureOrMessage(bundle));
+        // console.log(isNinesTrytes(signatureOrMessage(bundle)));
+        // return
+        // console.log("außen");
+        // console.log("pos",offset/TRANSACTION_LENGTH);
+        // console.log("address",tritsToTrytes(address(bundle, offset)));
+        // console.log("signmsg",tritsToTrytes(signatureOrMessage(bundle)));
+        // console.log("isnines",isNinesTrytes(tritsToTrytes(signatureOrMessage(bundle))));
+        let txTrits = bundle.slice(offset, offset + TRANSACTION_LENGTH)
+        let txTrytes = tritsToTrytes(txTrits)
+        let txobj = asTransactionObject(txTrytes)
+        // if (tritsToTrytes(address(bundle, offset)) === inputAddress && isNinesTrytes(tritsToTrytes(signatureOrMessage(bundle, offset))) && txobj.value <= 0) {
+        if (txobj.address === inputAddress && isNinesTrytes(txobj.signatureMessageFragment) && txobj.value <= 0) {
+            console.log('hier')
             const signature = new Int8Array(keyTrits.length)
 
             for (let i = 0; i < keyTrits.length / FRAGMENT_LENGTH; i++) {
+                console.log(
+                    'normaliedslice',
+                    tritsToTrytes(
+                        normalizedBundleHash.slice(
+                            ((signatureIndexCounter + i) % 3) * NORMALIZED_FRAGMENT_LENGTH,
+                            (((signatureIndexCounter + i) % 3) + 1) * NORMALIZED_FRAGMENT_LENGTH
+                        )
+                    )
+                )
+                console.log(signatureIndexCounter)
+                console.log(
+                    'i*NORMALIZED_FRAGMENT_LENGTH',
+                    ((signatureIndexCounter + i) % 3) * NORMALIZED_FRAGMENT_LENGTH
+                )
                 signature.set(
                     signatureFragment(
                         normalizedBundleHash.slice(
-                            i * NORMALIZED_FRAGMENT_LENGTH,
-                            (i + 1) * NORMALIZED_FRAGMENT_LENGTH
+                            ((signatureIndexCounter + i) % 3) * NORMALIZED_FRAGMENT_LENGTH,
+                            (((signatureIndexCounter + i) % 3) + 1) * NORMALIZED_FRAGMENT_LENGTH
                         ),
                         keyTrits.slice(i * FRAGMENT_LENGTH, (i + 1) * FRAGMENT_LENGTH)
                     ),
@@ -297,18 +332,20 @@ export const addSignature = (bundle: Int8Array, inputAddress: string, keyTrits: 
 
             const bundleTrits = addSignatureOrMessage(bundle, signature, signatureIndex)
             const bundleTrytes = []
-
             for (let jOffset = 0; jOffset < bundleTrits.length; jOffset += TRANSACTION_LENGTH) {
                 bundleTrytes.push(tritsToTrytes(bundleTrits.slice(jOffset, jOffset + TRANSACTION_LENGTH)))
             }
 
-            return callback(null, bundleTrytes.slice())
+            return bundleTrytes.slice()
         }
 
         signatureIndex += 1
+        if (txobj.value <= 0) {
+            signatureIndexCounter += 1
+        }
     }
 
-    return callback(new Error('Could not find signature index for address: ' + inputAddress))
+    return new Error('Could not find signature index for address: ' + inputAddress)
 }
 // }
 
