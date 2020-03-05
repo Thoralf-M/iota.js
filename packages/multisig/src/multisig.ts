@@ -33,9 +33,12 @@ import {
     Validator,
 } from '../../guards'
 import { Bundle, Callback, Provider, Transaction, Transfer } from '../../types'
-import Address from './address'
+// import Address from './address'
+import { getAddress } from './address'
 
 export { Bundle, Callback, Provider, Transaction, Transfer }
+
+export { getAddress }
 
 export interface MultisigInput {
     readonly address: string
@@ -128,187 +131,188 @@ export const createBundle = (
  *
  * @memberof module:multisig
  */
-export default class Multisig {
-    public address = Address
+// export default class Multisig {
+//     export address = Address
 
-    private provider: Provider // tslint:disable-line variable-name
+//     private provider: Provider // tslint:disable-line variable-name
 
-    constructor(provider: Provider) {
-        this.provider = provider
-    }
+//     constructor(provider: Provider) {
+//         this.provider = provider
+//     }
 
-    /**
-     * Gets the key value of a seed
-     *
-     * @member getKey
-     *
-     * @memberof Multisig
-     *
-     * @param {string} seed
-     * @param {number} index
-     * @param {number} security Security level to be used for the private key / address. Can be 1, 2 or 3
-     *
-     * @return {Int8Array} digest trytes
-     */
-    public getKey(seed: string, index: number, security: number) {
-        return key(subseed(trytesToTrits(seed), index), security)
-    }
+/**
+ * Gets the key value of a seed
+ *
+ * @member getKey
+ *
+ * @memberof Multisig
+ *
+ * @param {string} seed
+ * @param {number} index
+ * @param {number} security Security level to be used for the private key / address. Can be 1, 2 or 3
+ *
+ * @return {Int8Array} digest trytes
+ */
+export const getKey = (seed: string, index: number, security: number) => {
+    return key(subseed(trytesToTrits(seed), index), security)
+}
 
-    /**
-     * Gets the digest value of a seed
-     *
-     * @member getDigest
-     *
-     * @memberof Multisig
-     *
-     * @param {string} seed
-     * @param {number} index
-     * @param {number} security Security level to be used for the private key / address. Can be 1, 2 or 3
-     *
-     * @return {string} digest trytes
-     **/
-    public getDigest(seed: string, index: number, security: number) {
-        const keyTrits = key(subseed(trytesToTrits(seed), index), security)
+/**
+ * Gets the digest value of a seed
+ *
+ * @member getDigest
+ *
+ * @memberof Multisig
+ *
+ * @param {string} seed
+ * @param {number} index
+ * @param {number} security Security level to be used for the private key / address. Can be 1, 2 or 3
+ *
+ * @return {string} digest trytes
+ **/
+export const getDigest = (seed: string, index: number, security: number) => {
+    const keyTrits = key(subseed(trytesToTrits(seed), index), security)
 
-        return tritsToTrytes(digests(keyTrits))
-    }
+    return tritsToTrytes(digests(keyTrits))
+}
 
-    /**
-     * Validates  a generated multisig address
-     *
-     * @member validateAddress
-     *
-     * @memberof Multisig
-     *
-     * @param {string} multisigAddress
-     * @param {array} digests
-     *
-     * @return {boolean}
-     */
-    public validateAddress(multisigAddress: string, digestsArr: ReadonlyArray<string>) {
-        const kerl = new Kerl()
+/**
+ * Validates  a generated multisig address
+ *
+ * @member validateAddress
+ *
+ * @memberof Multisig
+ *
+ * @param {string} multisigAddress
+ * @param {array} digests
+ *
+ * @return {boolean}
+ */
+export const validateAddress = (multisigAddress: string, digestsArr: ReadonlyArray<string>) => {
+    const kerl = new Kerl()
 
-        // initialize Kerl with the provided state
-        kerl.initialize()
+    // initialize Kerl with the provided state
+    kerl.initialize()
 
-        // Absorb all key digests
-        digestsArr.forEach(keyDigest => {
-            const digestTrits = trytesToTrits(keyDigest)
-            kerl.absorb(trytesToTrits(keyDigest), 0, digestTrits.length)
-        })
+    // Absorb all key digests
+    digestsArr.forEach(keyDigest => {
+        const digestTrits = trytesToTrits(keyDigest)
+        kerl.absorb(trytesToTrits(keyDigest), 0, digestTrits.length)
+    })
 
-        // Squeeze address trits
-        const addressTrits: Int8Array = new Int8Array(Kerl.HASH_LENGTH)
-        kerl.squeeze(addressTrits, 0, Kerl.HASH_LENGTH)
+    // Squeeze address trits
+    const addressTrits: Int8Array = new Int8Array(Kerl.HASH_LENGTH)
+    kerl.squeeze(addressTrits, 0, Kerl.HASH_LENGTH)
 
-        // Convert trits into trytes and return the address
-        return tritsToTrytes(addressTrits) === multisigAddress
-    }
+    // Convert trits into trytes and return the address
+    return tritsToTrytes(addressTrits) === multisigAddress
+}
 
-    /**
-     * Prepares transfer by generating the bundle with the corresponding cosigner transactions
-     * Does not contain signatures
-     *
-     * @member initiateTransfer
-     *
-     * @memberof Multisig
-     *
-     * @param {object} input the input addresses as well as the securitySum, and balance where:
-     * - `address` is the input multisig address
-     * - `securitySum` is the sum of security levels used by all co-signers
-     * - `balance` is the expected balance, if you wish to override getBalances
-     * @param {string} remainderAddress Has to be generated by the cosigners before initiating the transfer, can be null if fully spent
-     * @param {object} transfers
-     * @param {function} callback
-     *
-     * @return {Int8Array} Bundle trits
-     */
-    public initiateTransfer(
-        input: MultisigInput,
-        transfers: ReadonlyArray<Transfer>,
-        remainderAddress?: string,
-        callback?: Callback<Bundle>
-    ): Promise<Bundle> {
-        return Promise.resolve(
-            validate(
-                multisigInputValidator(input),
-                arrayValidator<Transfer>(transferValidator)(transfers),
-                !!remainderAddress && remainderAddressValidator(remainderAddress)
-            )
+/**
+ * Prepares transfer by generating the bundle with the corresponding cosigner transactions
+ * Does not contain signatures
+ *
+ * @member initiateTransfer
+ *
+ * @memberof Multisig
+ *
+ * @param {object} input the input addresses as well as the securitySum, and balance where:
+ * - `address` is the input multisig address
+ * - `securitySum` is the sum of security levels used by all co-signers
+ * - `balance` is the expected balance, if you wish to override getBalances
+ * @param {string} remainderAddress Has to be generated by the cosigners before initiating the transfer, can be null if fully spent
+ * @param {object} transfers
+ * @param {function} callback
+ *
+ * @return {Int8Array} Bundle trits
+ */
+export const initiateTransfer = (
+    input: MultisigInput,
+    transfers: ReadonlyArray<Transfer>,
+    provider: Provider,
+    remainderAddress?: string,
+    callback?: Callback<Bundle>
+): Promise<Bundle> => {
+    return Promise.resolve(
+        validate(
+            multisigInputValidator(input),
+            arrayValidator<Transfer>(transferValidator)(transfers),
+            !!remainderAddress && remainderAddressValidator(remainderAddress)
         )
-            .then(() => sanitizeTransfers(transfers))
-            .then((sanitizedTransfers: ReadonlyArray<Transfer>) =>
-                input.balance
-                    ? createBundle(input, sanitizedTransfers, remainderAddress)
-                    : (createGetBalances(this.provider) as any)([input.address], 100)
-                          .then(
-                              (res: Balances): MultisigInput => ({
-                                  ...input,
-                                  balance: res.balances[0],
-                              })
-                          )
-                          .then((inputWithBalance: MultisigInput) =>
-                              createBundle(inputWithBalance, sanitizedTransfers, remainderAddress)
-                          )
-            )
-            .asCallback(callback)
-    }
+    )
+        .then(() => sanitizeTransfers(transfers))
+        .then((sanitizedTransfers: ReadonlyArray<Transfer>) =>
+            input.balance
+                ? createBundle(input, sanitizedTransfers, remainderAddress)
+                : (createGetBalances(provider) as any)([input.address], 100)
+                      .then(
+                          (res: Balances): MultisigInput => ({
+                              ...input,
+                              balance: res.balances[0],
+                          })
+                      )
+                      .then((inputWithBalance: MultisigInput) =>
+                          createBundle(inputWithBalance, sanitizedTransfers, remainderAddress)
+                      )
+        )
+        .asCallback(callback)
+}
 
-    /**
-     * Adds the cosigner signatures to the corresponding bundle transaction
-     *
-     * @member addSignature
-     *
-     * @memberof Multisig
-     *
-     * @param {Int8Array} bundle
-     * @param {number} cosignerIndex
-     * @param {string} inputAddress
-     * @param {string} keyTrits
-     * @param {function} callback
-     *
-     * @return {Int8Array} bundle with signature trits
-     */
-    public addSignature(bundle: Int8Array, inputAddress: string, keyTrits: Int8Array, callback: Callback) {
-        const bundleHashTrits = bundleHash(bundle)
-        const normalizedBundleHash = normalizedBundle(bundleHashTrits)
-        let signatureIndex = 0
+/**
+ * Adds the cosigner signatures to the corresponding bundle transaction
+ *
+ * @member addSignature
+ *
+ * @memberof Multisig
+ *
+ * @param {Int8Array} bundle
+ * @param {number} cosignerIndex
+ * @param {string} inputAddress
+ * @param {string} keyTrits
+ * @param {function} callback
+ *
+ * @return {Int8Array} bundle with signature trits
+ */
+export const addSignature = (bundle: Int8Array, inputAddress: string, keyTrits: Int8Array, callback: Callback) => {
+    const bundleHashTrits = bundleHash(bundle)
+    const normalizedBundleHash = normalizedBundle(bundleHashTrits)
+    let signatureIndex = 0
 
-        for (const offset = 0; offset < bundle.length * TRANSACTION_LENGTH; offset + TRANSACTION_LENGTH) {
-            if (tritsToTrytes(address(bundle)) === inputAddress && isNinesTrytes(signatureOrMessage(bundle))) {
-                const signature = new Int8Array(keyTrits.length)
+    for (const offset = 0; offset < bundle.length * TRANSACTION_LENGTH; offset + TRANSACTION_LENGTH) {
+        if (tritsToTrytes(address(bundle)) === inputAddress && isNinesTrytes(signatureOrMessage(bundle))) {
+            const signature = new Int8Array(keyTrits.length)
 
-                for (let i = 0; i < keyTrits.length / FRAGMENT_LENGTH; i++) {
-                    signature.set(
-                        signatureFragment(
-                            normalizedBundleHash.slice(
-                                i * NORMALIZED_FRAGMENT_LENGTH,
-                                (i + 1) * NORMALIZED_FRAGMENT_LENGTH
-                            ),
-                            keyTrits.slice(i * FRAGMENT_LENGTH, (i + 1) * FRAGMENT_LENGTH)
+            for (let i = 0; i < keyTrits.length / FRAGMENT_LENGTH; i++) {
+                signature.set(
+                    signatureFragment(
+                        normalizedBundleHash.slice(
+                            i * NORMALIZED_FRAGMENT_LENGTH,
+                            (i + 1) * NORMALIZED_FRAGMENT_LENGTH
                         ),
-                        i * FRAGMENT_LENGTH
-                    )
-                }
-
-                const bundleTrits = addSignatureOrMessage(bundle, signature, signatureIndex)
-                const bundleTrytes = []
-
-                for (let jOffset = 0; jOffset < bundleTrits.length; jOffset += TRANSACTION_LENGTH) {
-                    bundleTrytes.push(tritsToTrytes(bundleTrits.slice(jOffset, jOffset + TRANSACTION_LENGTH)))
-                }
-
-                return callback(null, bundleTrytes.slice())
+                        keyTrits.slice(i * FRAGMENT_LENGTH, (i + 1) * FRAGMENT_LENGTH)
+                    ),
+                    i * FRAGMENT_LENGTH
+                )
             }
 
-            signatureIndex += 1
+            const bundleTrits = addSignatureOrMessage(bundle, signature, signatureIndex)
+            const bundleTrytes = []
+
+            for (let jOffset = 0; jOffset < bundleTrits.length; jOffset += TRANSACTION_LENGTH) {
+                bundleTrytes.push(tritsToTrytes(bundleTrits.slice(jOffset, jOffset + TRANSACTION_LENGTH)))
+            }
+
+            return callback(null, bundleTrytes.slice())
         }
 
-        return callback(new Error('Could not find signature index for address: ' + inputAddress))
+        signatureIndex += 1
     }
+
+    return callback(new Error('Could not find signature index for address: ' + inputAddress))
 }
+// }
 
 /**
  *   Multisig address constructor
  */
-Multisig.prototype.address = Address
+// Multisig.prototype.address = Address

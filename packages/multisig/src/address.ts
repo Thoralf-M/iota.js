@@ -6,17 +6,24 @@ import { asArray } from '../../types'
  * @class Address
  * @memberof module:multisig
  */
-export default class Address {
-    private kerl: Kerl
+// export default class Address {
+//     private kerl: Kerl
 
-    constructor(digests?: string | ReadonlyArray<string>) {
-        this.kerl = new Kerl()
-        this.kerl.initialize()
+//     constructor(digests?: string | ReadonlyArray<string>) {
+//         a.kerl = new Kerl()
+//         a.kerl.initialize()
 
-        if (digests) {
-            this.absorb(digests)
-        }
-    }
+//         if (digests) {
+//             a.absorb(digests)
+//         }
+//     }
+// const a = {};
+// a.kerl = new Kerl()
+// a.kerl.initialize()
+// a.absorb(digests)
+export const getAddress = (digests: string | ReadonlyArray<string>) => {
+    const k = new Kerl()
+    k.initialize()
 
     /**
      * Absorbs key digests
@@ -29,9 +36,11 @@ export default class Address {
      *
      * @return {object} address instance
      */
-    public absorb(digests: string | ReadonlyArray<string>) {
+    const absorb = (digestsinabsorb: string | ReadonlyArray<string>) => {
         // Construct array
-        const digestsArray = asArray(digests)
+        const digestsArray = asArray(digestsinabsorb)
+        // const k = new Kerl();
+        // k.initialize()
 
         // Add digests
         for (let i = 0; i < digestsArray.length; i++) {
@@ -39,10 +48,13 @@ export default class Address {
             const digestTrits = trits(digestsArray[i])
 
             // Absorb digest
-            this.kerl.absorb(digestTrits, 0, digestTrits.length)
+            k.absorb(digestTrits, 0, digestTrits.length)
         }
 
-        return this
+        return k
+    }
+    if (digests) {
+        absorb(digests)
     }
     /**
      * Finalizes and returns the multisig address in trytes
@@ -55,17 +67,21 @@ export default class Address {
      *
      * @return {string} address trytes
      */
-    public finalize(digest?: string) {
+    const finalize = (digest?: string) => {
         // Absorb last digest if provided
         if (digest) {
-            this.absorb(digest)
+            // console.log("digest");
+            // k.absorb(digest)
+            absorb(digest)
         }
 
         // Squeeze the address trits
         const addressTrits: Int8Array = new Int8Array(Kerl.HASH_LENGTH)
-        this.kerl.squeeze(addressTrits, 0, Kerl.HASH_LENGTH)
+        k.squeeze(addressTrits, 0, Kerl.HASH_LENGTH)
 
         // Convert trits into trytes and return the address
         return trytes(addressTrits)
     }
+    return finalize()
+    // }
 }
