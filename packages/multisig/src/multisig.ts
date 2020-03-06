@@ -276,7 +276,7 @@ export const initiateTransfer = (
  */
 export const addSignature = (unfinishedbundle: any, inputAddress: string, keyTrits: Int8Array) => {
     let bundle = new Int8Array()
-    //allow trit and tryte array
+    // allow trit and tryte array
     if (unfinishedbundle.constructor == Int8Array) {
         bundle = unfinishedbundle
     } else {
@@ -291,7 +291,7 @@ export const addSignature = (unfinishedbundle: any, inputAddress: string, keyTri
         const txTrits = bundle.slice(offset, offset + TRANSACTION_LENGTH)
         const txTrytes = tritsToTrytes(txTrits)
         const txobj = asTransactionObject(txTrytes)
-        //ignore value < 0, only necessary if you spend back to input address, shouldn't be allowed later
+        // ignore value < 0, only necessary if you spend back to input address, shouldn't be allowed later
         // if (tritsToTrytes(address(bundle, offset)) === inputAddress && isNinesTrytes(tritsToTrytes(signatureOrMessage(bundle, offset))) && txobj.value <= 0) {
         if (txobj.address === inputAddress && isNinesTrytes(txobj.signatureMessageFragment) && txobj.value <= 0) {
             const signature = new Int8Array(keyTrits.length)
