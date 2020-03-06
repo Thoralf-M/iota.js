@@ -266,7 +266,7 @@ export const initiateTransfer = (
  *
  * @memberof Multisig
  *
- * @param {Int8Array} bundle
+ * @param {Int8Array | ReadonlyArray<string>} bundle
  * @param {number} cosignerIndex
  * @param {string} inputAddress
  * @param {string} keyTrits
@@ -274,7 +274,14 @@ export const initiateTransfer = (
  *
  * @return {Int8Array} bundle with signature trits
  */
-export const addSignature = (bundle: Int8Array, inputAddress: string, keyTrits: Int8Array) => {
+export const addSignature = (unfinishedbundle: any, inputAddress: string, keyTrits: Int8Array) => {
+    let bundle = new Int8Array()
+    //allow trit and tryte array
+    if (unfinishedbundle.constructor == Int8Array) {
+        bundle = unfinishedbundle
+    } else {
+        bundle = new Int8Array(trytesToTrits(unfinishedbundle.join('')))
+    }
     const bundleHashTrits = bundleHash(bundle)
     const normalizedBundleHash = normalizedBundle(bundleHashTrits)
     let signatureIndex = 0
@@ -284,6 +291,7 @@ export const addSignature = (bundle: Int8Array, inputAddress: string, keyTrits: 
         const txTrits = bundle.slice(offset, offset + TRANSACTION_LENGTH)
         const txTrytes = tritsToTrytes(txTrits)
         const txobj = asTransactionObject(txTrytes)
+        //ignore value < 0, only necessary if you spend back to input address, shouldn't be allowed later
         // if (tritsToTrytes(address(bundle, offset)) === inputAddress && isNinesTrytes(tritsToTrytes(signatureOrMessage(bundle, offset))) && txobj.value <= 0) {
         if (txobj.address === inputAddress && isNinesTrytes(txobj.signatureMessageFragment) && txobj.value <= 0) {
             const signature = new Int8Array(keyTrits.length)
